@@ -1,48 +1,45 @@
+/**
+ * References
+ * https://www.hongkiat.com/blog/rss-reader-in-javascript/
+ * https://github.com/puppeteer/puppeteer/issues/3594
+ * https://www.nikolas-blog.com/web-crawling-with-puppeteer
+ * https://stackoverflow.com/questions/56330197/jsdoms-queryselectorall-returned-too-many-xml-elements
+ * 
+ */
+//RSS READER
 const puppeteer = require('puppeteer');
-
-// (async () => {
-//     const browser = await puppeteer.launch({ headless:false });
-//     const page = await browser.newPage();
-//     await page.goto("https://en.wikipedia.org/wiki/Cars_(film)");
-//     await page.screenshot({ path: "cars.png" })
-//    // await browser.waitForTarget(()=>false);
-//     var result = await page.evaluate(()=>{
-//         let headings = document.querySelectorAll(".mw-headline");
-//         const headlingList = [...headings];
-//         return headlingList.map(h=>h.innerText)
-//    })
-//    console.log(result);
-//     await browser.close()
-//    })();
-   (async () => {
-    const browser = await puppeteer.launch({ headless:false });
-    const page = await browser.newPage();
-   //  await page.goto('https://accounts.google.com/signin/v2/identifier');
-      const navigationPromise = page.waitForNavigation()
-
-      await page.goto('https://accounts.google.com/')
-
-      await navigationPromise
-
-      await page.waitForSelector('input[type="email"]')
-      await page.click('input[type="email"]')
-
-      await navigationPromise
-
-      //TODO : change to your email 
-      await page.type('input[type="email"]', 'youremail@gmail.com')
-
-      await page.waitForSelector('#identifierNext')
-      await page.click('#identifierNext')
-
-      await page.waitForSelector('input[type="password"]')
-      await page.click('input[type="email"]')
-
-      //TODO : change to your password
-      await page.type('input[type="password"]', 'yourpassword')
-      await page.waitForSelector('#passwordNext')
-      await page.click('#passwordNext')
-      await navigationPromise
-      await browser.waitForTarget(()=>false);
-      await browser.close()
-   })();
+const fetch = require('node-fetch');
+const {JSDOM} = require('jsdom');
+(async ()=>{
+    try{
+        const browser = await puppeteer.launch({ headless:true });
+        const page = await browser.newPage();
+        await page.goto("https://css-tricks.com/how-to-fetch-and-parse-rss-feeds-in-javascript/");
+        var result = await page.evaluate(()=>{
+        var rssLinks =  document.querySelectorAll('link[type="application/rss+xml"]');
+        var list = [...rssLinks];
+        return list.map(link => link.getAttribute('href'));
+        })
+        for await (var url of result){
+            console.log("For this RSS URL :- " + url);
+            var response = 
+            await fetch(url)
+            .then(result =>{return result.text()})
+            .then( (text) =>{
+               // let doc  = parser.parseFromString(text,'text/xml');
+                let doc = new JSDOM(text,{contentType:"text/xml"}).window.document;
+                let items = doc.querySelectorAll('item');
+                console.log("No of <item> tags :- " + items.length);
+                var titleList = [];
+                items.forEach((item)=>{
+                    titleList.push(item.querySelector('title').textContent);
+                })
+                console.log(titleList);
+            })
+            .catch((err)=>{console.log(err);})
+        }
+        await browser.close();
+    }catch(err){
+        console.log(err);
+    }
+})();
