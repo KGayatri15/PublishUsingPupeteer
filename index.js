@@ -12,33 +12,44 @@ const fetch = require('node-fetch');
 const {JSDOM} = require('jsdom');
 (async ()=>{
     try{
+        var data = [];
+        var json = JSON.parse(JSON.stringify({}));
         const browser = await puppeteer.launch({ headless:true });
         const page = await browser.newPage();
-        await page.goto("https://css-tricks.com/how-to-fetch-and-parse-rss-feeds-in-javascript/");
+        var websiteURL = "https://css-tricks.com/how-to-fetch-and-parse-rss-feeds-in-javascript/"; 
+        json['websiteUrl'] = websiteURL;
+        await page.goto(websiteURL);
         var result = await page.evaluate(()=>{
         var rssLinks =  document.querySelectorAll('link[type="application/rss+xml"]');
         var list = [...rssLinks];
         return list.map(link => link.getAttribute('href'));
         })
+        await browser.close();
+        json['WEBSITE_RSS_CONTENT'] = [];
         for await (var url of result){
+            var RSS_JSON = JSON.parse(JSON.stringify({}));
             console.log("For this RSS URL :- " + url);
-            var response = 
+            RSS_JSON['url'] = url;
+            RSS_JSON['items'] = [];
             await fetch(url)
             .then(result =>{return result.text()})
             .then( (text) =>{
-               // let doc  = parser.parseFromString(text,'text/xml');
                 let doc = new JSDOM(text,{contentType:"text/xml"}).window.document;
                 let items = doc.querySelectorAll('item');
                 console.log("No of <item> tags :- " + items.length);
-                var titleList = [];
                 items.forEach((item)=>{
-                    titleList.push(item.querySelector('title').textContent);
+                    var item_JSON = JSON.parse(JSON.stringify({}));
+                    item_JSON['title'] = item.querySelector('title').textContent
+                  //  item_JSON['content'] = item.querySelector('description').textContent
+                    RSS_JSON.items.push(item_JSON);
                 })
-                console.log(titleList);
             })
             .catch((err)=>{console.log(err);})
+            console.log(RSS_JSON);
+            json.WEBSITE_RSS_CONTENT.push(RSS_JSON);
         }
-        await browser.close();
+        data.push(json);
+        console.log(data);
     }catch(err){
         console.log(err);
     }
